@@ -23,9 +23,6 @@ def test_twostage_cr3bp():
     mu1 = 1 - mu
     mu2 = mu
 
-    # integrator for evaluating ballistic trajectory
-    #integrator = stardust.DynamicsCR3BP(mu = mu, method='DOP853', rtol = 1e-13, atol = 1e-14)
-
     # initial state, propagation time
     rv0 = np.array([1.0809931218390707E+00,
           0.0000000000000000E+00,
@@ -51,7 +48,7 @@ def test_twostage_cr3bp():
     # construct problem
     args = (mu, mu1, mu2)
     tspan = [0, 1.2*period]
-    N = 25
+    N = 20
     prob = stardust.FixedTimeTwoStageOptimizer(
         stardust.eom_stm_rotating_cr3bp,
         rv0,
@@ -74,8 +71,19 @@ def test_twostage_cr3bp():
     print(f"Elapsed time = {tend - tstart} sec")
     assert exitflag == 1
 
+    # export nodes to file 
+    # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_t_nodes.txt'), prob.times)
+    # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_nodes.txt'), prob.nodes)
+    # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_ubars.txt'), prob.v_residuals)
+
     # plot trajectory
-    fig, ax = prob.plot_trajectory()
+    fig, ax, sols_check = prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True)
+    pos_error = np.linalg.norm(sols_check[-1].y[0:3,-1] - rvf[0:3])
+    vel_error = np.linalg.norm(sols_check[-1].y[3:6,-1] + prob.v_residuals[-1] - rvf[3:])
+    print(f"Final position error = {pos_error}")
+    print(f"Final velocity error = {vel_error}")
+    assert pos_error < 1e-11
+    assert vel_error < 1e-11
     
     # in-between guesses
     for _sols in iter_sols:
