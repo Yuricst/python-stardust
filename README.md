@@ -2,6 +2,8 @@
 
 > The Initial Guess is Random Noise
 
+![pytest workflow](https://github.com/Yuricst/python-stardust/actions/workflows/pytest.yml/badge.svg) 
+
 Stardust is a suite of two-stage optimization scheme for trajectory design in Newtonian dynamics [1]. 
 
 The scheme makes use of the following assumptions:
