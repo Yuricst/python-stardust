@@ -31,6 +31,10 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
         tspan (tuple): time span of trajectory
         N (int): number of nodes
         args (any): additional arguments to pass to `eom_stm`
+        ivp_method (str): method for `scipy.integrate.solve_ivp`
+        ivp_max_step (float): maximum step size for `scipy.integrate.solve_ivp`
+        ivp_rtol (float): relative tolerance for `scipy.integrate.solve_ivp`
+        ivp_atol (float): absolute tolerance for `scipy.integrate.solve_ivp`
     """
     def __init__(
         self,
@@ -142,7 +146,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
 
             # update positions
             weighted_F = np.multiply(weights, self.v_residuals.flatten())
-            rs_itm_new = rs_itm_flat - np.linalg.inv(np.transpose(self.J_outer)@self.J_outer) @ np.transpose(self.J_outer) @ weighted_F
+            rs_itm_new = rs_itm_flat - np.linalg.solve(self.J_outer.T @ self.J_outer, self.J_outer.T @ weighted_F)
             #self.v_residuals.flatten()
             self.nodes[1:-1,0:3] = rs_itm_new.reshape(self.N-2, 3)
         return exitflag, iter_sols

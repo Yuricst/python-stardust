@@ -5,8 +5,14 @@
 from ._misc import vbprint, plot_sphere_wireframe
 
 # pre-implemented dynamics
-from .eoms import *
+from .dynamics import *
 
-# shooting problems
+# two-stage shooting-based optimization problems
 from ._twostage_base import _BaseTwoStageOptimizer
 from ._twostage_fixedtime import FixedTimeTwoStageOptimizer
+
+# one-stage NLP
+from ._onestage_nlp_fixedtime import FixedTimeShootingNLP
+
+# scp
+from ._scp_fixedtime import FixedTimeSCP

@@ -22,6 +22,10 @@ class _BaseTwoStageOptimizer:
         tspan (tuple): time span of trajectory
         N (int): number of nodes
         args (any): additional arguments to pass to `eom_stm`
+        ivp_method (str): method for `scipy.integrate.solve_ivp`
+        ivp_max_step (float): maximum step size for `scipy.integrate.solve_ivp`
+        ivp_rtol (float): relative tolerance for `scipy.integrate.solve_ivp`
+        ivp_atol (float): absolute tolerance for `scipy.integrate.solve_ivp`
     """
     def __init__(
         self,
@@ -42,6 +46,7 @@ class _BaseTwoStageOptimizer:
         self.tspan = tspan
         self.N = N
         self.n_seg = N - 1
+        self.nx = 6
 
         self.args = args
         self.ivp_method = ivp_method
@@ -86,7 +91,7 @@ class _BaseTwoStageOptimizer:
         return
     
     
-    def propagate(self, get_sols=True, dense_output=False):
+    def propagate(self, get_sols=True, dense_output=False, use_itm_nodes=True):
         """Propagate nodes
         
         Args:
@@ -104,9 +109,15 @@ class _BaseTwoStageOptimizer:
 
         # iterate through segments
         for i in range(self.n_seg):
+            if use_itm_nodes or i == 0:
+                x0 = np.concatenate((self.nodes[i], np.eye(6).flatten()))
+            else:
+                x0 = np.concatenate((sol_i.y[:6,-1] + np.concatenate(([0,0,0], self.v_residuals[i])),
+                                     np.eye(6).flatten()))
+
             sol_i = solve_ivp(self.eom_stm, 
-                            self.tspans[i], 
-                            np.concatenate((self.nodes[i], np.eye(6).flatten())),
+                            self.tspans[i],
+                            x0,
                             args=self.args,
                             dense_output=dense_output, method=self.ivp_method,
                             max_step=self.ivp_max_step, rtol=self.ivp_rtol, atol=self.ivp_atol)
@@ -177,19 +188,22 @@ class _BaseTwoStageOptimizer:
         return 0, []
     
     
-    def plot_trajectory(self):
+    def plot_trajectory(self, use_itm_nodes=True, show_maneuvers=True):
         """Plot trajectory in 3D space"""
-        sols = self.propagate(get_sols = True, dense_output=False)
+        sols = self.propagate(get_sols = True, dense_output=False, use_itm_nodes=use_itm_nodes)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(self.nodes[:,0], self.nodes[:,1], self.nodes[:,2], 'o', color='black')
-        ax.quiver(self.nodes[:,0], self.nodes[:,1], self.nodes[:,2],
-                  self.v_residuals[:,0], self.v_residuals[:,1], self.v_residuals[:,2], color='red')
+        if show_maneuvers:
+            ax.quiver(self.nodes[:,0], self.nodes[:,1], self.nodes[:,2],
+                      self.v_residuals[:,0], self.v_residuals[:,1], self.v_residuals[:,2],
+                      color='red')
         for sol in sols:
             ax.plot(sol.y[0,:], sol.y[1,:], sol.y[2,:], color='black')
         ax.set(xlabel="x", ylabel="y", zlabel="z")
         ax.set_aspect('equal', 'box')
-        return fig, ax
+        return fig, ax, sols
+    
     
     def get_trajectory(self):
         """Get trajectory segments and maneuvers
@@ -197,9 +211,9 @@ class _BaseTwoStageOptimizer:
         Returns:
             (tuple): tuple containing
                 - list of length-Ki segment times,
-                - list of 6-by-Ki array of segment states, 
+                - list of array with shape (6,Ni) of segment states, 
                 - length-N list of maneuver times,
-                - N-by-3 array of maneuver DVs, one maneuver in each row
+                - array with shape (N,3) of maneuver DVs, one maneuver in each row
         """
         sols = self.propagate(get_sols = True, dense_output=False)
         ts_segments = [sol.t for sol in sols]
