@@ -2,20 +2,20 @@
 
 > The Initial Guess is Random Noise
 
-Stardust is a suite of two-stage optimization scheme for trajectory design in Newtonian dynamics. 
+Stardust is a suite of two-stage optimization scheme for trajectory design in Newtonian dynamics [1]. 
 
 The scheme makes use of the following assumptions:
 - the control actions are discretized to $N$ points, and are assumed to be impulsive (i.e. instantaneous change in velocity)
 
 The speed of the algorithm is dependent on $N$, since there is a Jacobian to be computed & least-squares problem with sizes that scale linearly with $N$. 
-In practice, $N = 30 \sim 50$ is "manageable" (solves in the order of 10s of seconds). 
+In practice, $N = 30 \sim 50$ is "manageable" (solves in the order of 10s of seconds using RK4). 
 
 
 ## Quick start
 
 1. Clone this repository and `cd` to its root
 
-2. Make sure the local python environemnt has dependencies: `numpy`, `scipy`, `matplotlib`, `numba`
+2. Make sure the local python environemnt has dependencies: `cvxpy`, `numpy`, `scipy`, `matplotlib`, `numba`
 
 3. Run tests with `pytest`
 
@@ -56,3 +56,8 @@ where `nx` is the dimension of the state.
 
 - [ ] Two-body dynamics
 - [ ] Option to neglect initial and/or final maneuver cost (weighted least-squares)
+
+
+## References
+
+[1] N. L. Parrish, “Low Thrust Trajectory Optimization in Cislunar and Translunar Space,” University of Colorado, 2018.
