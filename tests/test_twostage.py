@@ -22,15 +22,15 @@ def test_twostage_cr3bp():
     mu1 = 1 - mu
     mu2 = mu
 
-    # initial state, propagation time
+    # initial state
     rv0 = np.array([1.0809931218390707E+00,
           0.0000000000000000E+00,
           -2.0235953267405354E-01,
           1.0157158264396639E-14,
           -1.9895001215078018E-01,
           7.2218178975912707E-15])
-    period = 2.3538670417546639E+00
-    sol0_ballistic = solve_ivp(stardust.eom_rotating_cr3bp, (0, period), rv0, args=(mu, mu1, mu2), 
+    period_0 = 2.3538670417546639E+00
+    sol0_ballistic = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_0), rv0, args=(mu, mu1, mu2), 
                                method='RK45', rtol=1e-12, atol=1e-12)
 
     # final targeted state
@@ -46,7 +46,7 @@ def test_twostage_cr3bp():
 
     # construct problem
     args = (mu, mu1, mu2)
-    tspan = [0, 1.2*period]
+    tspan = [0, 1.2*period_0]
     N = 20
     prob = stardust.FixedTimeTwoStageOptimizer(
         stardust.eom_stm_rotating_cr3bp,
