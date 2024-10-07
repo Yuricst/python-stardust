@@ -8,4 +8,5 @@ from ._misc import vbprint, plot_sphere_wireframe
 from .eoms import *
 
 # shooting problems
-from ._twostage import TwoStageOptimizer
+from ._twostage_base import _BaseTwoStageOptimizer
+from ._twostage_fixedtime import FixedTimeTwoStageOptimizer

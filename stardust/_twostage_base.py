@@ -1,4 +1,4 @@
-"""Two-stage shooting algorithm
+"""Base class for two-stage optimizer
 
 Inner loop: enforce dynamics constraints
 Outer loop: minimize cost
@@ -12,22 +12,16 @@ from scipy.optimize import approx_fprime
 from ._misc import vbprint
 
 
-class TwoStageOptimizer:
-    """Two-stage optimizer for direct-method multi-impulse trajectory design in fixed-time
-
-    Note: by setting `ivp_rtol` and `ivp_atol` to 1, the integration effectively becomes
-    fixed time-step, with time-step given by `ivp_max_step`. 
-
-    The `eom_stm` function must be of the form `eom_stm(t, y, args)`, where `y` is t is the time, 
-    y is the concatenated state and flatenned state-transition matrix (STM), and args are additional arguments.
-    The function must return the concatenated state and flatenned STM derivatives. 
-    For example, see: `stardust.eom_stm_rotating_cr3bp`.
+class _BaseTwoStageOptimizer:
+    """Base class for two-stage optimizer
     
     Args:
         eom_stm (callable): callable function that computes the dynamics for state & STM
         rv0 (np.array): initial position and velocity vector
         rvf (np.array): final position and velocity vector
+        tspan (tuple): time span of trajectory
         N (int): number of nodes
+        args (any): additional arguments to pass to `eom_stm`
     """
     def __init__(
         self,
@@ -58,8 +52,6 @@ class TwoStageOptimizer:
         # initialize storage needed during solve process
         self.r_residuals = np.zeros((self.N, 3))
         self.v_residuals = np.zeros((self.N, 3))
-        self.J_inner = np.zeros((self.n_seg,3,3))
-        self.J_outer = np.zeros((3*self.N, 3*(self.N-2)))
 
         # initialize nodes
         self.create_nodes()
@@ -112,8 +104,6 @@ class TwoStageOptimizer:
 
         # iterate through segments
         for i in range(self.n_seg):
-            tspan = self.tspans[i]
-            rv0 = np.concatenate((self.nodes[i], np.eye(6).flatten()))
             sol_i = solve_ivp(self.eom_stm, 
                             self.tspans[i], 
                             np.concatenate((self.nodes[i], np.eye(6).flatten())),
@@ -134,8 +124,9 @@ class TwoStageOptimizer:
             return None
         
     
-    def inner_loop(self, rs_itm_flat = None, maxiter = 1, eps_inner = 1e-11, verbose = True, get_sols = False):
+    def inner_loop(self, rs_itm_flat = None, maxiter = 3, eps_inner = 1e-11, verbose = True, get_sols = False):
         """Enforce dynamics constraint by computing necessary velocity vectors
+
         If this function is called with `get_sols = False`, it returns the velocity residuals.
         This is used in the outer loop to compute the Jacobian with `approx_fprime`.
         
@@ -175,79 +166,15 @@ class TwoStageOptimizer:
         else:
             return self.v_residuals.flatten()
     
-    def _outer_loop_jacobian(self, rs_itm_flat, eps_fprime = 1e-7, maxiter_inner = 10, eps_inner = 1e-11):
-        """Compute Jacobian for outer loop
-        Note: the Jacobian is stored within the object's preallocated storage. 
-        
-        Args:
-            rs_itm_flat (np.array): flattened position vector of nodes
-            eps_fprime (float): step-size for finite difference
-            maxiter_inner (int): maximum number of iterations for inner loop
-            eps_inner (float): tolerance for inner loop
-
-        Returns:
-            None
-        """
-        #rs_itm_flat = self.nodes[1:-1,0:3].flatten()
-        J_outer_full = approx_fprime(rs_itm_flat, self.inner_loop, eps_fprime,
-                                        maxiter_inner, eps_inner, False, False)
-        self.J_outer[:,:] = J_outer_full
-        return
     
-    def solve(
-        self,
-        maxiter = 10,
-        eps_outer = 1e-3,
-        eps_fprime = 1e-7, 
-        maxiter_inner = 10,
-        eps_inner = 1e-11,
-        verbose = True,
-        verbose_inner = False,
-        save_all_iter_sols = False,
-    ):
+    def solve(self):
         """Outer loop to choose position vector of nodes
-        
-        Args:
-            maxiter (int): maximum number of iterations
-            eps_outer (float): tolerance exit condition based on cost progress
-            eps_fprime (float): step-size for finite difference Jacobian
-            maxiter_inner (int): maximum number of iterations for inner loop
-            eps_inner (float): tolerance for inner loop (i.e. tolerance on position continuity)
-            verbose (bool): whether to print progress of outer loop
-            verbose_inner (bool): whether to print progress of inner loop
-            save_all_iter_sols (bool): whether to save all intermediate solutions
 
         Returns:
             (int, list): exitflag, list of intermediate solutions
         """
-        iter_sols = []
-        dv_cost_iter = []
-        dv_cost_last = 1e18
-        exitflag = 0
-
-        for it in range(maxiter):
-            # save current nodes if requested
-            if save_all_iter_sols:
-                iter_sols.append(self.inner_loop(get_sols = True, verbose = verbose_inner))
-
-            # get current nodes
-            rs_itm_flat = self.nodes[1:-1,0:3].flatten()
-            self._outer_loop_jacobian(rs_itm_flat, eps_fprime, maxiter_inner, eps_inner)
-            
-            dv_cost = np.linalg.norm(self.v_residuals)
-            vbprint(f"Outer loop iteration {it} : cost = {dv_cost:1.4e}", verbose)
-            dv_cost_iter.append(dv_cost)
-            if np.abs(dv_cost_last - dv_cost) < eps_outer:
-                vbprint(f"Outer loop converged to within tolerance {eps_outer} in {it} iterations!", verbose)
-                exitflag = 1
-                break
-            else:
-                dv_cost_last = dv_cost
-
-            # update positions
-            rs_itm_new = rs_itm_flat - np.linalg.inv(np.transpose(self.J_outer)@self.J_outer) @ np.transpose(self.J_outer) @ self.v_residuals.flatten()
-            self.nodes[1:-1,0:3] = rs_itm_new.reshape(self.N-2, 3)
-        return exitflag, iter_sols
+        raise NotImplementedError("This method must be implemented in a subclass")
+        return 0, []
     
     
     def plot_trajectory(self):
@@ -263,3 +190,18 @@ class TwoStageOptimizer:
         ax.set(xlabel="x", ylabel="y", zlabel="z")
         ax.set_aspect('equal', 'box')
         return fig, ax
+    
+    def get_trajectory(self):
+        """Get trajectory segments and maneuvers
+        
+        Returns:
+            (tuple): tuple containing
+                - list of length-Ki segment times,
+                - list of 6-by-Ki array of segment states, 
+                - length-N list of maneuver times,
+                - N-by-3 array of maneuver DVs, one maneuver in each row
+        """
+        sols = self.propagate(get_sols = True, dense_output=False)
+        ts_segments = [sol.t for sol in sols]
+        ys_segments = [sol.y for sol in sols]
+        return ts_segments, ys_segments, self.times, self.v_residuals

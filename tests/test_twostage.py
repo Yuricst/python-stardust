@@ -51,8 +51,8 @@ def test_twostage_cr3bp():
     # construct problem
     args = (mu, mu1, mu2)
     tspan = [0, 1.2*period]
-    N = 20
-    prob = stardust.TwoStageOptimizer(
+    N = 25
+    prob = stardust.FixedTimeTwoStageOptimizer(
         stardust.eom_stm_rotating_cr3bp,
         rv0,
         rvf,
@@ -69,7 +69,7 @@ def test_twostage_cr3bp():
     # test outer loop
     print(f"Testing outer loop...")
     tstart = time.time()
-    exitflag, iter_sols = prob.solve(maxiter = 10, save_all_iter_sols = True)
+    exitflag, iter_sols = prob.solve(maxiter = 10, save_all_iter_sols = True, verbose_inner = True)
     tend = time.time()
     print(f"Elapsed time = {tend - tstart} sec")
     assert exitflag == 1
@@ -86,7 +86,7 @@ def test_twostage_cr3bp():
     stardust.plot_sphere_wireframe(ax, 1737/384400, [1-mu,0,0], color='grey')
     ax.set(xlabel="x", ylabel="y", zlabel="z")
     ax.set_aspect('equal', 'box')
-    fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
+    # fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
     return
 
 
