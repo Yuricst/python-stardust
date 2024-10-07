@@ -17,6 +17,11 @@ class TwoStageOptimizer:
 
     Note: by setting `ivp_rtol` and `ivp_atol` to 1, the integration effectively becomes
     fixed time-step, with time-step given by `ivp_max_step`. 
+
+    The `eom_stm` function must be of the form `eom_stm(t, y, args)`, where `y` is t is the time, 
+    y is the concatenated state and flatenned state-transition matrix (STM), and args are additional arguments.
+    The function must return the concatenated state and flatenned STM derivatives. 
+    For example, see: `stardust.eom_stm_rotating_cr3bp`.
     
     Args:
         eom_stm (callable): callable function that computes the dynamics for state & STM
