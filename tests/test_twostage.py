@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from scipy.integrate import solve_ivp
-import pygmo as pg
 
 import sys
 import os
