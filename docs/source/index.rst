@@ -17,3 +17,4 @@ documentation for details.
    :caption: Contents:
 
    notebooks/ex_twostage_fixedtf_cr3bp.ipynb
+   notebooks/example_direct_lunar_transfer.ipynb

@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.optimize import approx_fprime
+from tqdm.auto import tqdm
 
 from ._misc import vbprint
 from ._twostage_base import _BaseTwoStageOptimizer
@@ -108,7 +109,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
         return v_res_flat[index_r-1:index_r+2,:].flatten()
     
     
-    def _outer_loop_jacobian_sparse(self, eps_fprime = 1e-7, maxiter_inner = 10, eps_inner = 1e-11):
+    def _outer_loop_jacobian_sparse(self, eps_fprime = 1e-7, maxiter_inner = 10, eps_inner = 1e-11, disable_tqdm = False):
         """Compute sparse Jacobian of dimension (3N, 3(N-2)) for outer loop
         
         The sparse Jaocbian is a faster approximation where we assume the position vector r_i
@@ -126,7 +127,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
             None
         """
         self.J_outer[:,:] = np.zeros((3*self.N, 3*(self.N-2)))
-        for i in range(1,self.N-1):
+        for i in tqdm(range(1,self.N-1), desc='  Computing outer-loop Jacobian', disable=disable_tqdm):
             r_perturbed = self.nodes[i,0:3].copy()
             jac_i = approx_fprime(r_perturbed, self._inner_loop_sparse, eps_fprime,
                                   self.nodes[:,0:3], i, maxiter_inner, eps_inner)
@@ -140,6 +141,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
         eps_fprime = 1e-7, 
         maxiter_inner = 10,
         eps_inner = 1e-11,
+        eps_inner_intermediate = 1e-8,
         verbose = True,
         verbose_inner = True,
         save_all_iter_sols = False,
@@ -151,6 +153,9 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
         The `weights` argument allows the user to penalize/neglect the cost of a certain
         maneuver component. For example, if the initial maneuver cost can be omitted, then
         consider using: `weights = [0,0,0] + [1,1,1] * N-1`. 
+
+        The `eps_inner_intermediate` is provided to speed up the outer-loop. 
+        The algorithm re-runs the inner-loop at the end with the tighter `eps_inner` tolerance.
         
         Args:
             maxiter (int): maximum number of iterations
@@ -158,6 +163,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
             eps_fprime (float): step-size for finite difference Jacobian
             maxiter_inner (int): maximum number of iterations for inner loop
             eps_inner (float): tolerance for inner loop (i.e. tolerance on position continuity)
+            eps_inner_intermediate (float): tolerance for inner loop during iteration of outer loop.
             verbose (bool): whether to print progress of outer loop
             verbose_inner (bool): whether to print progress of inner loop
             save_all_iter_sols (bool): whether to save all intermediate solutions
@@ -183,7 +189,10 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
 
         for it in range(maxiter):
             # run inner loop to make sure there is enough nodes
-            _sols_inner_loop = self.inner_loop(maxiter = maxiter_inner, get_sols = True, verbose = verbose_inner)
+            _sols_inner_loop = self.inner_loop(maxiter = maxiter_inner,
+                                               eps_inner = eps_inner_intermediate,
+                                               get_sols = True,
+                                               verbose = verbose_inner)
             if self.inner_loop_success is not True:
                 vbprint(f"Inner loop failed to converge in outer loop iteration {it}!", verbose)
                 break
@@ -195,13 +204,15 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
             # get current nodes
             if sparse_approx_jacobian:
                 print(f"  Computing outer-loop sparse Jacobian...")
-                self._outer_loop_jacobian_sparse(eps_fprime, maxiter_inner, eps_inner)
+                self._outer_loop_jacobian_sparse(eps_fprime, maxiter_inner, eps_inner_intermediate, disable_tqdm = verbose==False)
             else:
                 print(f"  Computing outer-loop dense Jacobian...")
                 self._outer_loop_jacobian(eps_fprime, maxiter_inner, eps_inner)
             
             # compute cost based on per-maneuver norm
-            dv_cost = np.sum( (self.v_residuals * self.v_residuals).sum(axis=1)**0.5 )
+            weighted_F = np.multiply(weights, self.v_residuals.flatten())
+            weighted_vs = weighted_F.reshape(self.N, 3)
+            dv_cost = np.sum( (weighted_vs * weighted_vs).sum(axis=1)**0.5 )
             vbprint(f"Outer loop iteration {it} : cost = {dv_cost:1.4e}", verbose)
             dv_cost_iter.append(dv_cost)
 
@@ -220,7 +231,6 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
                 dv_cost_last = dv_cost
 
             # update positions
-            weighted_F = np.multiply(weights, self.v_residuals.flatten())
             rs_itm_new = self.nodes[1:-1,0:3].flatten() - np.linalg.solve(self.J_outer.T @ self.J_outer, self.J_outer.T @ weighted_F)
             #self.v_residuals.flatten()
             self.nodes[1:-1,0:3] = rs_itm_new.reshape(self.N-2, 3)
@@ -229,7 +239,12 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
         if (exitflag == 0) and (i_best != maxiter-1):
             print(f"Recovering solution from iteration {i_best}")
             self.nodes[:,:] = best_nodes
-            self.propagate()                # call to store r_residuals and v_residuals
             dv_cost = np.sum( (self.v_residuals * self.v_residuals).sum(axis=1)**0.5 )
             print(f"Cost: {dv_cost:1.4e}")
+        
+        # final "clean-up" run
+        print(f"Final clean-up inner loop...")
+        _sols_inner_loop = self.inner_loop(maxiter = maxiter_inner, get_sols = True, verbose = verbose_inner)
+        if save_all_iter_sols:
+            iter_sols.append(_sols_inner_loop)
         return exitflag, iter_sols

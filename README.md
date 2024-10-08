@@ -25,7 +25,7 @@ In practice, $N = 30 \sim 50$ is "manageable" (solves in the order of 10s of sec
 pytest tests
 ```
 
-## How to use it
+## How to use `stardust`
 
 The package provides the following dynamics models:
 
@@ -134,6 +134,7 @@ ax.set_aspect('equal', 'box')
   - [ ] Sparse Jacobian calculation
 - [ ] Two-body dynamics
 - [ ] Option to neglect initial and/or final maneuver cost (weighted least-squares)
+- [ ] Sensitivity of least-squares problem to speed up Jacobian?
 
 
 ## References

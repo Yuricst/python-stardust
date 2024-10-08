@@ -137,7 +137,14 @@ class _BaseTwoStageOptimizer:
             return None
         
     
-    def inner_loop(self, rs_itm_flat = None, maxiter = 10, eps_inner = 1e-11, verbose = True, get_sols = False):
+    def inner_loop(
+        self,
+        rs_itm_flat = None,
+        maxiter = 30,
+        eps_inner = 1e-11,
+        verbose = True,
+        get_sols = False,
+    ):
         """Enforce dynamics constraint by computing necessary velocity vectors
 
         If this function is called with `get_sols = False`, it returns the velocity residuals.

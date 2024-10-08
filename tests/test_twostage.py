@@ -65,7 +65,7 @@ def test_twostage_innerloop():
     return
 
 
-def test_outerloop_cr3bp():
+def test_twostage_outerloop():
     # physical parameters
     LU = 389703     # km
     TU = 382981     # sec
@@ -172,7 +172,8 @@ def test_outerloop_cr3bp():
 
 
 if __name__=="__main__":
-    test_twostage_cr3bp()
+    test_twostage_innerloop()
+    test_twostage_outerloop()
     print("Done!")
     plt.show()
     
