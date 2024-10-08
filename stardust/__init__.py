@@ -2,7 +2,7 @@
 
 
 # miscellaneous imports
-from ._misc import vbprint, plot_sphere_wireframe
+from ._misc import vbprint, plot_circle, plot_sphere_wireframe
 
 # pre-implemented dynamics
 from .dynamics import *

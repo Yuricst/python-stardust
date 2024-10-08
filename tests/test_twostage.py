@@ -48,6 +48,14 @@ def test_twostage_cr3bp():
     args = (mu, mu1, mu2)
     tspan = [0, 1.2*period_0]
     N = 20
+
+    # # test inner loop
+    # print(f"Testing inner loop...")
+    # prob.create_nodes()
+    # sols = prob.inner_loop(prob.nodes[1:-1,0:3].flatten(), get_sols = True, maxiter = 10, verbose = True)
+
+    # test outer loop
+    print(f"\nTesting outer loop in dense Jacobian mode...")
     prob = stardust.FixedTimeTwoStageOptimizer(
         stardust.eom_stm_rotating_cr3bp,
         rv0,
@@ -56,19 +64,37 @@ def test_twostage_cr3bp():
         N = N,
         args = args,
     )
-
-    # # test inner loop
-    # print(f"Testing inner loop...")
-    # prob.create_nodes()
-    # sols = prob.inner_loop(prob.nodes[1:-1,0:3].flatten(), get_sols = True, maxiter = 10, verbose = True)
-
-    # test outer loop
-    print(f"Testing outer loop...")
     tstart = time.time()
-    exitflag, iter_sols = prob.solve(maxiter = 10, save_all_iter_sols = True, verbose_inner = True)
+    exitflag, iter_sols = prob.solve(maxiter = 10,
+                                     save_all_iter_sols = True, 
+                                     verbose_inner = True,
+                                     sparse_approx_jacobian = False)
     tend = time.time()
-    print(f"Elapsed time = {tend - tstart} sec")
+    print(f"Elapsed time = {tend - tstart} sec\n")
     assert exitflag == 1
+
+    print(f"\nTesting outer loop in sparse Jacobian mode...")
+    prob = stardust.FixedTimeTwoStageOptimizer(     # need to re-initialize
+        stardust.eom_stm_rotating_cr3bp,
+        rv0,
+        rvf,
+        tspan,
+        N = N,
+        args = args,
+    )
+    tstart = time.time()
+    exitflag, iter_sols = prob.solve(maxiter = 10,
+                                     save_all_iter_sols = True, 
+                                     verbose_inner = True,
+                                     sparse_approx_jacobian = True)
+    tend = time.time()
+    print(f"Elapsed time = {tend - tstart} sec\n")
+    assert exitflag == 1
+
+    # Plot Jacobian sparsity
+    fig, ax = plt.subplots()
+    ax.spy(prob.J_outer)
+    ax.set_title('Jacobian Sparsity Pattern')
 
     # export nodes to file 
     # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_t_nodes.txt'), prob.times)
