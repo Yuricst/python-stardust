@@ -128,6 +128,10 @@ ax.set_aspect('equal', 'box')
 
 ## TODO
 
+- [x] Sparse Jacobian approximation
+- [x] Storage for best solution so far
+- [ ] Parallelization
+  - [ ] Sparse Jacobian calculation
 - [ ] Two-body dynamics
 - [ ] Option to neglect initial and/or final maneuver cost (weighted least-squares)
 
