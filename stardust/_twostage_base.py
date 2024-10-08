@@ -40,6 +40,7 @@ class _BaseTwoStageOptimizer:
         ivp_rtol = 1,
         ivp_atol = 1
     ):
+        assert N > 1, "Number of nodes must be greater than 1"
         self.eom_stm = eom_stm
         self.rv0 = rv0
         self.rvf = rvf
@@ -60,6 +61,7 @@ class _BaseTwoStageOptimizer:
 
         # initialize nodes
         self.create_nodes()
+        self.inner_loop_success = True
         return 
     
     
@@ -135,7 +137,7 @@ class _BaseTwoStageOptimizer:
             return None
         
     
-    def inner_loop(self, rs_itm_flat = None, maxiter = 3, eps_inner = 1e-11, verbose = True, get_sols = False):
+    def inner_loop(self, rs_itm_flat = None, maxiter = 10, eps_inner = 1e-11, verbose = True, get_sols = False):
         """Enforce dynamics constraint by computing necessary velocity vectors
 
         If this function is called with `get_sols = False`, it returns the velocity residuals.
@@ -153,9 +155,10 @@ class _BaseTwoStageOptimizer:
         """
         if rs_itm_flat is not None:
             assert rs_itm_flat.shape == (3*(self.N-2),),\
-                f"rs_flat must be of shape 3*(N-2) = {3*(self.N-2)}, but given {rs_itm_flat.shape}"
+                f"rs_itm_flat must be of shape 3*(N-2) = {3*(self.N-2)}, but given {rs_itm_flat.shape}"
             self.nodes[1:-1,0:3] = rs_itm_flat.reshape(self.N-2, 3)
 
+        self.inner_loop_success = False         # initially set to False
         res_norms = np.zeros(self.n_seg)
         for it in range(maxiter):
             # propagate nodes
@@ -171,6 +174,7 @@ class _BaseTwoStageOptimizer:
             vbprint(f"    Inner loop {it}: max position residual norm: {max(res_norms):1.4e}", verbose)
             if max(res_norms) < eps_inner:
                 vbprint(f"    Inner loop converged to within tolerance {eps_inner} in {it} iterations!", verbose)
+                self.inner_loop_success = True
                 break
         if get_sols:
             return sols
