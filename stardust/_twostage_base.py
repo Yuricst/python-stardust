@@ -38,7 +38,8 @@ class _BaseTwoStageOptimizer:
         ivp_method = 'RK45',
         ivp_max_step = 0.01,
         ivp_rtol = 1,
-        ivp_atol = 1
+        ivp_atol = 1,
+        initial_nodes_strategy = 'random_path',
     ):
         assert N > 1, "Number of nodes must be greater than 1"
         self.eom_stm = eom_stm
@@ -60,18 +61,27 @@ class _BaseTwoStageOptimizer:
         self.v_residuals = np.zeros((self.N, 3))
 
         # initialize nodes
-        self.create_nodes()
+        self.create_nodes(strategy = initial_nodes_strategy)
         self.inner_loop_success = True
         return 
     
     
-    def create_nodes(self, nodes_ig = None, strategy = 'linear'):
+    def create_nodes(self,
+                     nodes_ig = None,
+                     strategy = 'random_path',
+                     sample_box = None,
+                     offset_rectilinear = 0.01):
         """Create nodes for optimization
         
         Args:
             nodes_ig (np.array): initial guess for nodes
-            strategy (str): strategy to connect nodes
+            strategy (str): strategy to connect nodes, either 'linear' or 'random_path' or 'random_box'
+            offset_rectilinear (float): offset to avoid rectilinear motion in 'random' strategy
         """
+        __ig_strategies = ['linear', 'random_path', 'random_box']
+        assert strategy in __ig_strategies,\
+            f"strategy {strategy} not recognized (allows: {__ig_strategies})"
+        
         # create time stamps of nodes and integration time-spans
         self.times = np.linspace(self.tspan[0], self.tspan[1], self.N)
         self.tspans = []
@@ -82,14 +92,42 @@ class _BaseTwoStageOptimizer:
         if nodes_ig is not None:
             assert nodes_ig.shape == (self.N, 6), "nodes_ig must be of shape (N, 6)"
             self.nodes = nodes_ig
+            return
 
         elif strategy == 'linear':
             # linearly connect rv0 and rvf
             self.nodes = np.linspace(self.rv0, self.rvf, self.N)
-            # over-write velocity guess based on linear approximation
-            for i in range(self.n_seg):
-                vi_guess = (self.nodes[i+1,0:3] - self.nodes[i,0:3])/(self.times[i+1] - self.times[i])
-                self.nodes[i,3:6] = vi_guess
+
+        elif strategy == 'random_box':
+            #assert box is not None, "box must be provided to use 'random_box' strategy"
+            assert sample_box.shape == (3,2), "box must be of shape (3,2)"
+
+            # create random nodes
+            self.nodes = np.zeros((self.N, 6))
+            self.nodes[:,0:3] = np.multiply(np.random.rand(self.N,3), sample_box[:,1] - sample_box[:,0]) + sample_box[:,0]
+
+        elif strategy == 'random_path':
+            # get bounding box between rv0 and rvf
+            bounds = [
+                [np.min([el0, elf]), np.max([el0, elf])] 
+                for (el0, elf) in zip(self.rv0, self.rvf)
+            ]
+            for bound in bounds:
+                if bound[0] == bound[1]:
+                    bound[0] -= offset_rectilinear  # offset to avoid rectilinear motion
+                    bound[1] += offset_rectilinear  # offset to avoid rectilinear motion
+            bounds = np.array(bounds)
+            ranges = bounds[:,1] - bounds[:,0]
+
+            # create random nodes
+            self.nodes = np.multiply(np.random.rand(self.N,6), ranges) + bounds[:,0]
+            self.nodes[0] = self.rv0
+            self.nodes[-1] = self.rvf
+        
+        # over-write velocity guess based on linear approximation
+        for i in range(self.n_seg):
+            vi_guess = (self.nodes[i+1,0:3] - self.nodes[i,0:3])/(self.times[i+1] - self.times[i])
+            self.nodes[i,3:6] = vi_guess
         return
     
     

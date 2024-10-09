@@ -18,7 +18,7 @@ jobs:
           node-version: 20
       - name: Install dependencies  
         run: |
-          pip install wheel numpy matplotlib scipy numba cvxpy pytest coverage genbadge[all]
+          pip install wheel numpy matplotlib scipy tqdm numba cvxpy pytest coverage genbadge[all]
       - name: Test with pytest  
         run: |  
           coverage run -m pytest  -v -s tests

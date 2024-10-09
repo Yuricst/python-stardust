@@ -49,7 +49,8 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
         ivp_method = 'RK45',
         ivp_max_step = 0.01,
         ivp_rtol = 1,
-        ivp_atol = 1
+        ivp_atol = 1,
+        initial_nodes_strategy = 'random_path',
     ):
         # inheritance
         super().__init__(
@@ -62,7 +63,8 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
             ivp_method,
             ivp_max_step,
             ivp_rtol,
-            ivp_atol
+            ivp_atol,
+            initial_nodes_strategy
         )
 
         # overwrite Jacobian storages
@@ -136,7 +138,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
     
     def solve(
         self,
-        maxiter = 10,
+        maxiter = 20,
         eps_outer = 1e-3,
         eps_fprime = 1e-7, 
         maxiter_inner = 10,
@@ -152,7 +154,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
 
         The `weights` argument allows the user to penalize/neglect the cost of a certain
         maneuver component. For example, if the initial maneuver cost can be omitted, then
-        consider using: `weights = [0,0,0] + [1,1,1] * N-1`. 
+        consider using: `weights = [0.1,0.1,0.1] + [1,1,1] * N-1`. 
 
         The `eps_inner_intermediate` is provided to speed up the outer-loop. 
         The algorithm re-runs the inner-loop at the end with the tighter `eps_inner` tolerance.
