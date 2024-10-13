@@ -9,7 +9,7 @@ from .dynamics import *
 
 # two-stage shooting-based optimization problems
 from ._twostage_base import _BaseTwoStageOptimizer
-from ._twostage_fixedtime import FixedTimeTwoStageLeastSquares
+from ._twostage_fixedtime_lsq import FixedTimeTwoStageLeastSquares
 
 # one-stage NLP
 from ._onestage_nlp_fixedtime import FixedTimeShootingNLP

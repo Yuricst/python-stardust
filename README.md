@@ -136,7 +136,7 @@ ax.set_aspect('equal', 'box')
 - Two-stage problem
   - [ ] Option to neglect initial and/or final maneuver cost (weighted least-squares)
   - [ ] Sensitivity of least-squares problem to speed up Jacobian?
-  - [ ] Plot controls option
+  - [x] Plot controls function in base struct
   - [x] Outer-loop least-squares solver
   - [ ] Outer-loop minimizer sum of DV
 

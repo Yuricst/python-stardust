@@ -263,7 +263,7 @@ class _BaseTwoStageOptimizer:
         else:
             new_plot = False
         ax.stem(self.times, np.linalg.norm(self.v_residuals, axis=1)*VU)
-        ax.set(xlabel='Time', ylabel='Delta-V')
+        ax.set(xlabel='Time', ylabel='Delta-V magnitude')
         if new_plot:
             return fig, ax
         else:
