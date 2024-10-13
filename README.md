@@ -85,7 +85,7 @@ solf_ballistic = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_f), rvf,
 args = (mu, mu1, mu2)       # arguments for the equations of motion
 tspan = [0, 1.2*period_0]   # transfer time
 N = 20                      # number of nodes
-prob = stardust.FixedTimeTwoStageOptimizer(
+prob = stardust.FixedTimeTwoStageLeastSquares(
     stardust.eom_stm_rotating_cr3bp,
     rv0,
     rvf,

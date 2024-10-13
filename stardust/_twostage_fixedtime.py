@@ -15,7 +15,7 @@ from ._misc import vbprint
 from ._twostage_base import _BaseTwoStageOptimizer
 
 
-class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
+class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
     """Two-stage optimizer for direct-method multi-impulse trajectory design in fixed-time
 
     Note: by setting `ivp_rtol` and `ivp_atol` to 1, the integration effectively becomes
@@ -189,7 +189,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
         best_cost = 1e18
         i_best = -1
 
-        for it in range(maxiter):
+        for it in range(1, maxiter+1):
             # run inner loop to make sure there is enough nodes
             _sols_inner_loop = self.inner_loop(maxiter = maxiter_inner,
                                                eps_inner = eps_inner_intermediate,
@@ -238,7 +238,7 @@ class FixedTimeTwoStageOptimizer(_BaseTwoStageOptimizer):
             self.nodes[1:-1,0:3] = rs_itm_new.reshape(self.N-2, 3)
 
         # if not converged, overwrite with best found nodes so far
-        if (exitflag == 0) and (i_best != maxiter-1):
+        if (exitflag == 0) and (i_best != maxiter):
             print(f"Recovering solution from iteration {i_best}")
             self.nodes[:,:] = best_nodes
             dv_cost = np.sum( (self.v_residuals * self.v_residuals).sum(axis=1)**0.5 )
