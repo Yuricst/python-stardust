@@ -133,10 +133,12 @@ ax.set_aspect('equal', 'box')
 - [ ] Parallelization
   - [ ] Sparse Jacobian calculation
 - [ ] Two-body dynamics
-- [ ] Option to neglect initial and/or final maneuver cost (weighted least-squares)
-- [ ] Sensitivity of least-squares problem to speed up Jacobian?
-- [x] Outer-loop least-squares solver
-- [ ] Outer-loop minimizer sum of DV
+- Two-stage problem
+  - [ ] Option to neglect initial and/or final maneuver cost (weighted least-squares)
+  - [ ] Sensitivity of least-squares problem to speed up Jacobian?
+  - [ ] Plot controls option
+  - [x] Outer-loop least-squares solver
+  - [ ] Outer-loop minimizer sum of DV
 
 ## References
 

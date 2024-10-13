@@ -254,6 +254,22 @@ class _BaseTwoStageOptimizer:
         return fig, ax, sols
     
     
+    def plot_deltaV(self, VU = 1.0, ax=None, use_itm_nodes=True, figsize=(8,6)):
+        """Plot delta-V's"""
+        self.propagate(get_sols = False, dense_output=False, use_itm_nodes=use_itm_nodes)
+        if ax is None:
+            new_plot = True
+            fig, ax = plt.subplots(1,1,figsize=figsize)
+        else:
+            new_plot = False
+        ax.stem(self.times, np.linalg.norm(self.v_residuals, axis=1)*VU)
+        ax.set(xlabel='Time', ylabel='Delta-V')
+        if new_plot:
+            return fig, ax
+        else:
+            return
+    
+    
     def get_trajectory(self):
         """Get trajectory segments and maneuvers
         

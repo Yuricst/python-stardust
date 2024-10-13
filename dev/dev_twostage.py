@@ -46,7 +46,7 @@ def test_twostage_outerloop():
     # construct problem
     args = (mu, mu1, mu2)
     tspan = [0, 12.5*86400/TU]
-    N = 40
+    N = 20
     print(f"tspan = {tspan}")
 
     print(f"\nTesting outer loop in sparse Jacobian mode...")
@@ -98,6 +98,9 @@ def test_twostage_outerloop():
     ax.set(xlabel="x", ylabel="y", zlabel="z")
     ax.set_aspect('equal', 'box')
     # fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
+
+    # plot control
+    fig_u, ax_u = prob.plot_deltaV()
     return
 
 
