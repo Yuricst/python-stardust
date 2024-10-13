@@ -135,7 +135,8 @@ ax.set_aspect('equal', 'box')
 - [ ] Two-body dynamics
 - [ ] Option to neglect initial and/or final maneuver cost (weighted least-squares)
 - [ ] Sensitivity of least-squares problem to speed up Jacobian?
-
+- [x] Outer-loop least-squares solver
+- [ ] Outer-loop minimizer sum of DV
 
 ## References
 

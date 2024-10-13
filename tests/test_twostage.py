@@ -181,7 +181,7 @@ def test_twostage_outerloop():
     stardust.plot_sphere_wireframe(ax, 1737/384400, [1-mu,0,0], color='grey')
     ax.set(xlabel="x", ylabel="y", zlabel="z")
     ax.set_aspect('equal', 'box')
-    # fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
+    fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
     return
 
 
