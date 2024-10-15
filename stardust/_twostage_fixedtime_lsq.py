@@ -1,7 +1,8 @@
-"""Two-stage shooting algorithm
+"""Two-stage shooting algorithm via least-squares outer-loop
+This algorithm results in (approximately) a minimum-energy impulsive trajectory. 
 
 Inner loop: enforce dynamics constraints
-Outer loop: minimize cost
+Outer loop: minimize impulse costs via least-squares
 """
 
 import copy
@@ -16,7 +17,8 @@ from ._twostage_base import _BaseTwoStageOptimizer
 
 
 class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
-    """Two-stage optimizer for direct-method multi-impulse trajectory design in fixed-time
+    """Two-stage least-squares problem for direct-method multi-impulse trajectory design in fixed-time
+    The resulting trajectory is approximatly a minimum-energy multi-impulsive trajectory.
 
     Note: by setting `ivp_rtol` and `ivp_atol` to 1, the integration effectively becomes
     fixed time-step, with time-step given by `ivp_max_step`. 
@@ -150,7 +152,7 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
         weights = None,
         sparse_approx_jacobian = True,
     ):
-        """Outer loop to choose position vector of nodes
+        """Outer loop least-squares to choose position vector of nodes
 
         The `weights` argument allows the user to penalize/neglect the cost of a certain
         maneuver component. For example, if the initial maneuver cost can be omitted, then
@@ -159,6 +161,9 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
         The `eps_inner_intermediate` is provided to speed up the outer-loop. 
         The algorithm re-runs the inner-loop at the end with the tighter `eps_inner` tolerance.
         
+        If `sparse_approx_jacobian` is used, we assume each position affects the 
+        preceeding, current, and next node's DV.
+
         Args:
             maxiter (int): maximum number of iterations
             eps_outer (float): tolerance exit condition based on cost progress
@@ -170,6 +175,7 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
             verbose_inner (bool): whether to print progress of inner loop
             save_all_iter_sols (bool): whether to save all intermediate solutions
             weights (list): weights for least-squares problem for each maneuver component
+            sparse_approx_jacobian (bool): whether to use sparse Jacobian approximation
 
         Returns:
             (int, list): exitflag, list of intermediate solutions
@@ -239,13 +245,13 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
 
         # if not converged, overwrite with best found nodes so far
         if (exitflag == 0) and (i_best != maxiter):
-            print(f"Recovering solution from iteration {i_best}")
+            vbprint(f"\nRecovering solution from iteration {i_best}", verbose)
             self.nodes[:,:] = best_nodes
             dv_cost = np.sum( (self.v_residuals * self.v_residuals).sum(axis=1)**0.5 )
             print(f"Cost: {dv_cost:1.4e}")
         
         # final "clean-up" run
-        print(f"Final clean-up inner loop...")
+        vbprint(f"\nFinal clean-up inner loop...", verbose)
         _sols_inner_loop = self.inner_loop(maxiter = maxiter_inner, get_sols = True, verbose = verbose_inner)
         if save_all_iter_sols:
             iter_sols.append(_sols_inner_loop)

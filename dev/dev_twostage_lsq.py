@@ -75,9 +75,9 @@ def test_twostage_outerloop():
     ax.set_title('Jacobian Sparsity Pattern')
 
     # export nodes to file
-    # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_t_nodes.txt'), prob.times)
-    # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_nodes.txt'), prob.nodes)
-    # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_ubars.txt'), prob.v_residuals)
+    np.savetxt(os.path.join(os.path.dirname(__file__), 'test_t_nodes.txt'), prob.times)
+    np.savetxt(os.path.join(os.path.dirname(__file__), 'test_nodes.txt'), prob.nodes)
+    np.savetxt(os.path.join(os.path.dirname(__file__), 'test_ubars.txt'), prob.v_residuals)
 
     # plot trajectory
     fig, ax, sols_check = prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True)
