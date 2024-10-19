@@ -67,51 +67,51 @@ def test_twostage_outerloop():
     prob.times = times_init
     prob.nodes = nodes_init
 
-    # plot linesearch results
-    prob.plot_linesearch(alphas = np.linspace(0,0.1,10))
-    plt.show()
+    # # plot linesearch results
+    # prob.plot_linesearch(alphas = np.linspace(0,0.005,30))
+    # plt.show()
 
-    # # run solve
-    # tstart = time.time()
-    # exitflag, iter_sols = prob.solve(maxiter = 3,
-    #                                  save_all_iter_sols = True, 
-    #                                  verbose_inner = True)
-    # tend = time.time()
-    # # print(f"Elapsed time = {tend - tstart} sec\n")
-    # # print(f"exitflag = {exitflag}")
+    # run solve
+    tstart = time.time()
+    exitflag, iter_sols = prob.solve(maxiter = 2,
+                                     save_all_iter_sols = True, 
+                                     verbose_inner = False)
+    tend = time.time()
+    # print(f"Elapsed time = {tend - tstart} sec\n")
+    # print(f"exitflag = {exitflag}")
 
-    # # # Plot Jacobian sparsity
-    # # fig, ax = plt.subplots()
-    # # ax.spy(prob.J_outer)
-    # # ax.set_title('Jacobian Sparsity Pattern')
+    # # Plot Jacobian sparsity
+    # fig, ax = plt.subplots()
+    # ax.spy(prob.J_outer)
+    # ax.set_title('Jacobian Sparsity Pattern')
 
-    # # # export nodes to file
-    # # # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_t_nodes.txt'), prob.times)
-    # # # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_nodes.txt'), prob.nodes)
-    # # # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_ubars.txt'), prob.v_residuals)
+    # # export nodes to file
+    # # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_t_nodes.txt'), prob.times)
+    # # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_nodes.txt'), prob.nodes)
+    # # np.savetxt(os.path.join(os.path.dirname(__file__), 'test_ubars.txt'), prob.v_residuals)
 
-    # # plot trajectory
-    # fig, ax, sols_check = prob.plot_trajectory(use_itm_nodes=True, show_maneuvers=True)
-    # pos_error = np.linalg.norm(sols_check[-1].y[0:3,-1] - rvf[0:3])
-    # vel_error = np.linalg.norm(sols_check[-1].y[3:6,-1] + prob.v_residuals[-1] - rvf[3:])
-    # print(f"Final position error = {pos_error}")
-    # print(f"Final velocity error = {vel_error}")
-    # assert pos_error < 1e-11
-    # assert vel_error < 1e-11
+    # plot trajectory
+    fig, ax, sols_check = prob.plot_trajectory(use_itm_nodes=True, show_maneuvers=True)
+    pos_error = np.linalg.norm(sols_check[-1].y[0:3,-1] - rvf[0:3])
+    vel_error = np.linalg.norm(sols_check[-1].y[3:6,-1] + prob.v_residuals[-1] - rvf[3:])
+    print(f"Final position error = {pos_error}")
+    print(f"Final velocity error = {vel_error}")
+    assert pos_error < 1e-11
+    assert vel_error < 1e-11
     
-    # # in-between guesses
-    # for _sols in iter_sols:
-    #     for _sol in _sols:
-    #         ax.plot(_sol.y[0,:], _sol.y[1,:], _sol.y[2,:], color='black', lw=0.5)
-    # ax.plot(sol0_ballistic.y[0,:], sol0_ballistic.y[1,:], sol0_ballistic.y[2,:], color='blue')
-    # ax.plot(solf_ballistic.y[0,:], solf_ballistic.y[1,:], solf_ballistic.y[2,:], color='green')
-    # stardust.plot_sphere_wireframe(ax, 1737/384400, [1-mu,0,0], color='grey')
-    # ax.set(xlabel="x", ylabel="y", zlabel="z")
-    # ax.set_aspect('equal', 'box')
-    # # fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
+    # in-between guesses
+    for _sols in iter_sols:
+        for _sol in _sols:
+            ax.plot(_sol.y[0,:], _sol.y[1,:], _sol.y[2,:], color='black', lw=0.5)
+    ax.plot(sol0_ballistic.y[0,:], sol0_ballistic.y[1,:], sol0_ballistic.y[2,:], color='blue')
+    ax.plot(solf_ballistic.y[0,:], solf_ballistic.y[1,:], solf_ballistic.y[2,:], color='green')
+    stardust.plot_sphere_wireframe(ax, 1737/384400, [1-mu,0,0], color='grey')
+    ax.set(xlabel="x", ylabel="y", zlabel="z")
+    ax.set_aspect('equal', 'box')
+    # fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
 
-    # # plot control
-    # fig_u, ax_u = prob.plot_deltaV()
+    # plot control
+    fig_u, ax_u = prob.plot_deltaV()
     return
 
 
