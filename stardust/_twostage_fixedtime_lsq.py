@@ -239,7 +239,6 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
 
             # get current nodes
             if sparse_approx_jacobian:
-                print(f"  Computing outer-loop sparse Jacobian...")
                 if nprocs == 1:
                     self._outer_loop_jacobian_sparse(eps_fprime, maxiter_inner, eps_inner_intermediate, disable_tqdm = verbose==False)
                 else:
