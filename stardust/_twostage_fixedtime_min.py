@@ -74,9 +74,38 @@ class FixedTimeTwoStageMinimizer(_BaseTwoStageOptimizer):
         self.DF = np.zeros(3*(self.N-2),)
         return
     
-    def _linesearch(self, c1=0.0001, c2=0.9, maxiter=10):
+    def _linesearch(
+        self,
+        rs_itm_flat,
+        search_dir,
+        alpha0 = 1.0,
+        kappa = 0.75,
+        c1 = 0.0001,
+        c2 = 0.9,
+        maxiter = 10,
+        algo = 'backtrack',
+        maxiter_inner = 10,
+        eps_inner_intermediate = 1e-8,
+        verbose_inner = False,
+    ):
         """Compute step-size for unconstraind minimization"""
-        return
+        alpha = alpha0
+        dv_cost0 =  np.sum(np.linalg.norm(self.v_residuals, axis=1))
+        if algo == 'backtrack':
+            for it in range(maxiter):
+                alpha *= kappa
+                rs_itm_new = rs_itm_flat + alpha * search_dir
+                self.nodes[1:-1,0:3] = rs_itm_new.reshape(self.N-2, 3)
+                self.inner_loop(maxiter = maxiter_inner,
+                                eps_inner = eps_inner_intermediate,
+                                get_sols = True,
+                                verbose = verbose_inner)
+                dv_cost_iter = np.sum(np.linalg.norm(self.v_residuals, axis=1))
+                if dv_cost_iter < dv_cost0:
+                    break
+        else:
+            raise ValueError(f"Algorithm {algo} not recognized")
+        return alpha
     
     def _descent_direction(self):
         """Compute descent direction for unconstrained minimization"""
@@ -90,7 +119,7 @@ class FixedTimeTwoStageMinimizer(_BaseTwoStageOptimizer):
         verbose = False,
     ):
         """Compute cumulative cost for inner loop"""
-        rs_itm_flat = self.nodes[1:-1,0:3].flatten()
+        # rs_itm_flat = self.nodes[1:-1,0:3].flatten()
         v_res_flat = self.inner_loop(rs_itm_flat, maxiter = maxiter_inner,
                                      eps_inner = eps_inner, verbose = verbose, get_sols = False)
         v_res_flat = v_res_flat.reshape(self.N, 3)
@@ -107,7 +136,7 @@ class FixedTimeTwoStageMinimizer(_BaseTwoStageOptimizer):
         eps_inner_intermediate = 1e-11,
         descent_direction = 'steepest',
         verbose = True,
-        verbose_inner = True,
+        verbose_inner = False,
         save_all_iter_sols = False,
     ):
         """Outer loop unconstrained minimization to choose position vector of nodes
@@ -181,7 +210,14 @@ class FixedTimeTwoStageMinimizer(_BaseTwoStageOptimizer):
                 raise ValueError(f"Descent direction {descent_direction} not recognized")
 
             # compute step-size via line-search
-            alpha = 0.2
+            alpha = self._linesearch(
+                rs_itm_flat,
+                search_dir,
+                maxiter_inner = maxiter_inner,
+                eps_inner_intermediate = eps_inner_intermediate,
+                verbose_inner = False
+            )
+            vbprint(f"  Step-size: {alpha:1.4e}", verbose)
 
             # perform update on positions
             rs_itm_new = rs_itm_flat + alpha * search_dir
@@ -215,7 +251,7 @@ class FixedTimeTwoStageMinimizer(_BaseTwoStageOptimizer):
         rs_itm_flat = self.nodes[1:-1,0:3].flatten()    # flattened decision variables
         self.DF[:] = approx_fprime(
             rs_itm_flat, self._inner_loop_to_cumulative_cost, eps_fprime,
-            maxiter_inner, eps_inner, True,
+            maxiter_inner, eps_inner, False,
         )
         
         if descent_direction == 'steepest':
@@ -225,7 +261,7 @@ class FixedTimeTwoStageMinimizer(_BaseTwoStageOptimizer):
 
         # compute new cost
         dv_costs = []
-        for alpha in tqdm(alphas):
+        for alpha in tqdm(alphas, desc='Testing step-sizes'):
             rs_itm_new = rs_itm_flat + alpha * search_dir
             self.nodes[1:-1,0:3] = rs_itm_new.reshape(self.N-2, 3)
             self.inner_loop(maxiter = maxiter_inner,
