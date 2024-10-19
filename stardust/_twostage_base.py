@@ -4,8 +4,9 @@ Inner loop: enforce dynamics constraints
 Outer loop: minimize cost
 """
 
-import numpy as np
+import copy
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import approx_fprime
 
@@ -131,26 +132,33 @@ class _BaseTwoStageOptimizer:
         return
     
     
-    def propagate(self, get_sols=True, dense_output=False, use_itm_nodes=True):
+    def propagate(self, get_sols=True, dense_output=False, use_itm_nodes=True, nodes = None):
         """Propagate nodes
         
         Args:
             get_sols (bool): whether to return solutions of each segment
             dense_output (bool): whether to use dense output on each solution object
+            use_itm_nodes (bool): whether to use intermediate nodes to propagate segment-wise
+            nodes (np.array): nodes to propagate; if not provided, the function uses self.nodes
 
         Returns:
             (list or None): list of solution objects of each segment or None
         """
+        if nodes is None:
+            nodes = self.nodes
+        else:
+            assert nodes.shape == self.nodes.shape, "nodes must be of shape (N, 6)"
+
         if get_sols:
             sols = []
         # initial node residuals
-        self.r_residuals[0,:] = self.nodes[0,0:3] - self.rv0[0:3]
-        self.v_residuals[0,:] = self.nodes[0,3:6] - self.rv0[3:6]
+        self.r_residuals[0,:] = nodes[0,0:3] - self.rv0[0:3]
+        self.v_residuals[0,:] = nodes[0,3:6] - self.rv0[3:6]
 
         # iterate through segments
         for i in range(self.n_seg):
             if use_itm_nodes or i == 0:
-                x0 = np.concatenate((self.nodes[i], np.eye(6).flatten()))
+                x0 = np.concatenate((nodes[i], np.eye(6).flatten()))
             else:
                 x0 = np.concatenate((sol_i.y[:6,-1] + np.concatenate(([0,0,0], self.v_residuals[i])),
                                      np.eye(6).flatten()))
@@ -166,8 +174,8 @@ class _BaseTwoStageOptimizer:
                 sols.append(sol_i)
 
             # store STM and residuals
-            self.r_residuals[i+1,:] = self.nodes[i+1,0:3] - sol_i.y[0:3,-1]
-            self.v_residuals[i+1,:] = self.nodes[i+1,3:6] - sol_i.y[3:6,-1]
+            self.r_residuals[i+1,:] = nodes[i+1,0:3] - sol_i.y[0:3,-1]
+            self.v_residuals[i+1,:] = nodes[i+1,3:6] - sol_i.y[3:6,-1]
             self.J_inner[i,:,:] = -stm[0:3,3:6]    # sensitivity of final position w.r.t. initial velocity
         if get_sols:
             return sols
@@ -182,6 +190,7 @@ class _BaseTwoStageOptimizer:
         eps_inner = 1e-11,
         verbose = True,
         get_sols = False,
+        overwrite_nodes = True,
     ):
         """Enforce dynamics constraint by computing necessary velocity vectors
 
@@ -203,17 +212,19 @@ class _BaseTwoStageOptimizer:
                 f"rs_itm_flat must be of shape 3*(N-2) = {3*(self.N-2)}, but given {rs_itm_flat.shape}"
             self.nodes[1:-1,0:3] = rs_itm_flat.reshape(self.N-2, 3)
 
+        # setups
+        _nodes = copy.deepcopy(self.nodes)      # we deepcopy to avoid overwriting during Jacobian calculation of outer-loop
         self.inner_loop_success = False         # initially set to False
         res_norms = np.zeros(self.n_seg)
         for it in range(maxiter):
             # propagate nodes
-            sols = self.propagate(get_sols = get_sols)
+            sols = self.propagate(get_sols = get_sols, nodes = _nodes)
 
             # update nodes
             for i in range(self.n_seg):
                 # compute velocity correction
                 J = self.J_inner[i,:,:]
-                self.nodes[i,3:6] -= np.linalg.solve(J, self.r_residuals[i+1,:])
+                _nodes[i,3:6] -= np.linalg.solve(J, self.r_residuals[i+1,:])
                 #self.nodes[i,3:6] -= np.linalg.inv(J) @ self.r_residuals[i,:]
                 res_norms[i] = np.linalg.norm(self.r_residuals[i,:])
             vbprint(f"    Inner loop {it}: max position residual norm: {max(res_norms):1.4e}", verbose)
@@ -221,6 +232,10 @@ class _BaseTwoStageOptimizer:
                 vbprint(f"    Inner loop converged to within tolerance {eps_inner} in {it} iterations!", verbose)
                 self.inner_loop_success = True
                 break
+
+        if overwrite_nodes:
+            self.nodes[:,:] = _nodes
+
         if get_sols:
             return sols
         else:

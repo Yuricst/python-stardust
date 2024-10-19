@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 from scipy.optimize import approx_fprime
 from tqdm.auto import tqdm
+import multiprocessing as mp
 
 from ._misc import vbprint
 from ._twostage_base import _BaseTwoStageOptimizer
@@ -108,7 +109,8 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
         assert 0 < index_r < self.N-1, "index_r must be between 1 and N-2"
         rs_nodes[index_r,0:3] = r_perturbed
         rs_itm_flat = rs_nodes[1:-1,:].flatten()
-        v_res_flat = self.inner_loop(rs_itm_flat, maxiter = maxiter_inner, eps_inner = eps_inner, verbose = False, get_sols = False)
+        v_res_flat = self.inner_loop(rs_itm_flat, maxiter = maxiter_inner, eps_inner = eps_inner,
+                                     verbose = False, get_sols = False, overwrite_nodes = False)
         v_res_flat = v_res_flat.reshape(self.N, 3)
         return v_res_flat[index_r-1:index_r+2,:].flatten()
     
@@ -138,6 +140,31 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
             self.J_outer[3*i-3:3*i+6, 3*(i-1):3*i] = jac_i
         return
     
+    def _outer_loop_jacobian_sparse_parallel(self, nprocs = 2, eps_fprime = 1e-7, maxiter_inner = 10, eps_inner = 1e-11, disable_tqdm = False):
+        """Parallel computation of Jacobian"""
+        self.J_outer[:,:] = np.zeros((3*self.N, 3*(self.N-2)))
+        # prepare arguments for parallel computation
+        args_list = []
+        for i in range(1,self.N-1):
+            r_perturbed = self.nodes[i,0:3].copy()
+            args_list.append((r_perturbed, self._inner_loop_sparse, eps_fprime, 
+                              self.nodes[:,0:3], i, maxiter_inner, eps_inner))
+        # compute Jacobian in parallel
+        pool = mp.Pool(processes = nprocs) 
+        J_entry_list = pool.starmap_async(approx_fprime,
+                                          tqdm(args_list, total=self.N-2, desc='  Computing outer-loop Jacobian')).get()
+
+        # store results
+        for _i, jac_i in enumerate(J_entry_list):
+            i = _i + 1
+            self.J_outer[3*i-3:3*i+6, 3*(i-1):3*i] = jac_i
+        # J_entry_list = [pool.apply_async(approx_fprime, args = args_list[i-1]) for i in range(1,self.N-1)]
+        # for drone in J_entry_list: 
+        #     Results.collectData(drone.get()) 
+        # pool.close() 
+        # pool.join() 
+        return J_entry_list
+    
     def solve(
         self,
         maxiter = 20,
@@ -151,6 +178,7 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
         save_all_iter_sols = False,
         weights = None,
         sparse_approx_jacobian = True,
+        nprocs = 1,
     ):
         """Outer loop least-squares to choose position vector of nodes
 
@@ -212,7 +240,10 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
             # get current nodes
             if sparse_approx_jacobian:
                 print(f"  Computing outer-loop sparse Jacobian...")
-                self._outer_loop_jacobian_sparse(eps_fprime, maxiter_inner, eps_inner_intermediate, disable_tqdm = verbose==False)
+                if nprocs == 1:
+                    self._outer_loop_jacobian_sparse(eps_fprime, maxiter_inner, eps_inner_intermediate, disable_tqdm = verbose==False)
+                else:
+                    self._outer_loop_jacobian_sparse_parallel(nprocs, eps_fprime, maxiter_inner, eps_inner_intermediate, disable_tqdm = verbose==False)
             else:
                 print(f"  Computing outer-loop dense Jacobian...")
                 self._outer_loop_jacobian(eps_fprime, maxiter_inner, eps_inner)
