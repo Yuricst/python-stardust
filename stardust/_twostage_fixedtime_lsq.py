@@ -69,12 +69,16 @@ class FixedTimeTwoStageLeastSquares(_BaseTwoStageOptimizer):
             ivp_atol,
             initial_nodes_strategy
         )
-
         # overwrite Jacobian storages
-        self.J_inner = np.zeros((self.n_seg,3,3))
-        self.J_outer = np.zeros((3*self.N, 3*(self.N-2)))
+        self._reset_outerloop_storage()
         return
     
+    def _reset_outerloop_storage(self, reset_innerloop = False):
+        """Reset outerloop storage"""
+        if reset_innerloop:
+            self._reset_innerloop_storage()
+        self.J_outer = np.zeros((3*self.N, 3*(self.N-2)))
+        return
     
     def _outer_loop_jacobian(self, eps_fprime = 1e-7, maxiter_inner = 10, eps_inner = 1e-11):
         """Compute sparse Jacobian of dimension (3N, 3(N-2)) for outer loop

@@ -10,7 +10,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import approx_fprime
 
-from ._misc import vbprint
+from ._misc import vbprint, plot_sphere_wireframe
 
 
 class _BaseTwoStageOptimizer:
@@ -58,14 +58,26 @@ class _BaseTwoStageOptimizer:
         self.ivp_atol = ivp_atol
 
         # initialize storage needed during solve process
-        self.r_residuals = np.zeros((self.N, 3))
-        self.v_residuals = np.zeros((self.N, 3))
+        self._reset_innerloop_storage()
 
         # initialize nodes
         self.create_nodes(strategy = initial_nodes_strategy)
         self.inner_loop_success = True
         return 
     
+    def _reset_innerloop_storage(self):
+        """Reset residuals storage"""
+        self.r_residuals = np.zeros((self.N, 3))
+        self.v_residuals = np.zeros((self.N, 3))
+        self.J_inner = np.zeros((self.n_seg,3,3))
+        return
+    
+    def _compute_timespans(self):
+        """Compute time-spans from times"""
+        self.tspans = []
+        for i in range(self.n_seg):
+            self.tspans.append((self.times[i], self.times[i+1]))
+        return
     
     def create_nodes(self,
                      nodes_ig = None,
@@ -85,9 +97,7 @@ class _BaseTwoStageOptimizer:
         
         # create time stamps of nodes and integration time-spans
         self.times = np.linspace(self.tspan[0], self.tspan[1], self.N)
-        self.tspans = []
-        for i in range(self.n_seg):
-            self.tspans.append((self.times[i], self.times[i+1]))
+        self._compute_timespans()
         
         # nodes initial guess
         if nodes_ig is not None:
@@ -129,6 +139,48 @@ class _BaseTwoStageOptimizer:
         for i in range(self.n_seg):
             vi_guess = (self.nodes[i+1,0:3] - self.nodes[i,0:3])/(self.times[i+1] - self.times[i])
             self.nodes[i,3:6] = vi_guess
+        return
+    
+
+    def remove_node(self, index):
+        """Remove an intermediate node
+        
+        Args:
+            index (int): index of node to remove
+        """
+        assert 0 < index < self.N-1, "index must be between 1 and N - 2"
+        # remove from list of nodes and time-stamps
+        self.nodes = np.delete(self.nodes, index, axis=0)
+        self.times = np.delete(self.times, index)
+
+        # update number of nodes and number of segments
+        self.N -= 1
+        self.n_seg -= 1
+
+        # recompute time-spans and reset residual storage
+        self._compute_timespans()
+        self._reset_innerloop_storage()
+        return
+    
+
+    def add_node(self, time, rvec, vvec):
+        """Add an intermediate node"""
+        assert self.times[0] < time < self.times[-1],\
+            f"new node's time must be in ({self.times[0]}, {self.times[-1]})"
+        assert len(rvec) == len(vvec) == 3, "rvec and vvec must be of length 3"
+
+        # find index of new node
+        idx = np.searchsorted(self.times, time)
+        self.times = np.insert(self.times, idx, time)
+        self.nodes = np.insert(self.nodes, idx, np.concatenate((rvec, vvec)), axis=0)
+
+        # update number of nodes and number of segments
+        self.N += 1
+        self.n_seg += 1
+
+        # recompute time-spans and reset residual storage
+        self._compute_timespans()
+        self._reset_innerloop_storage()
         return
     
     
@@ -252,11 +304,14 @@ class _BaseTwoStageOptimizer:
         return 0, []
     
     
-    def plot_trajectory(self, use_itm_nodes=True, show_maneuvers=True):
+    def plot_trajectory(self, use_itm_nodes=True, show_maneuvers=True,
+                        sphere_radius = None, sphere_center = None, sphere_color = 'grey'):
         """Plot trajectory in 3D space"""
         sols = self.propagate(get_sols = True, dense_output=False, use_itm_nodes=use_itm_nodes)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
+        if (sphere_radius is not None) and (sphere_center is not None):
+            plot_sphere_wireframe(ax, sphere_radius, sphere_center, color=sphere_color)
         ax.scatter(self.nodes[:,0], self.nodes[:,1], self.nodes[:,2], 'o', color='black')
         if show_maneuvers:
             ax.quiver(self.nodes[:,0], self.nodes[:,1], self.nodes[:,2],
