@@ -6,6 +6,7 @@ Outer loop: minimize cost
 
 import copy
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import approx_fprime
@@ -69,7 +70,8 @@ class _BaseTwoStageOptimizer:
         """Reset residuals storage"""
         self.r_residuals = np.zeros((self.N, 3))
         self.v_residuals = np.zeros((self.N, 3))
-        self.J_inner = np.zeros((self.n_seg,3,3))
+        self.J_inner     = np.zeros((self.n_seg, 3, 3))
+        self.sols        = []
         return
     
     def _compute_timespans(self):
@@ -201,11 +203,12 @@ class _BaseTwoStageOptimizer:
         else:
             assert nodes.shape == self.nodes.shape, "nodes must be of shape (N, 6)"
 
-        if get_sols:
-            sols = []
+        # if get_sols:
+        #     sols = []
         # initial node residuals
         self.r_residuals[0,:] = nodes[0,0:3] - self.rv0[0:3]
         self.v_residuals[0,:] = nodes[0,3:6] - self.rv0[3:6]
+        self.sols = []
 
         # iterate through segments
         for i in range(self.n_seg):
@@ -222,15 +225,16 @@ class _BaseTwoStageOptimizer:
                             dense_output=dense_output, method=self.ivp_method,
                             max_step=self.ivp_max_step, rtol=self.ivp_rtol, atol=self.ivp_atol)
             stm = sol_i.y[6:,-1].reshape(6,6)
-            if get_sols:
-                sols.append(sol_i)
+            self.sols.append(sol_i)
+            # if get_sols:
+            #     sols.append(sol_i)
 
             # store STM and residuals
             self.r_residuals[i+1,:] = nodes[i+1,0:3] - sol_i.y[0:3,-1]
             self.v_residuals[i+1,:] = nodes[i+1,3:6] - sol_i.y[3:6,-1]
             self.J_inner[i,:,:] = -stm[0:3,3:6]    # sensitivity of final position w.r.t. initial velocity
         if get_sols:
-            return sols
+            return self.sols
         else:
             return None
         
@@ -338,6 +342,58 @@ class _BaseTwoStageOptimizer:
             return fig, ax
         else:
             return
+        
+
+    def primer_vector(self):
+        """Compute primer vector history
+        
+        Returns:
+            (tuple): tuple of times and primer vector histories
+        """
+        pi_times = []
+        pi_histories = []
+        for i in range(self.n_seg):
+            # construct boundary conditions from DV residuals
+            p0 = self.v_residuals[i] / np.linalg.norm(self.v_residuals[i])
+            pf = self.v_residuals[i+1] / np.linalg.norm(self.v_residuals[i+1])
+
+            # get initial primer vector rate
+            STMf0 = self.sols[i].y[6:,-1].reshape(6,6)
+            A,B = STMf0[0:3,0:3], STMf0[0:3,3:6]
+            C,D = STMf0[3:6,0:3], STMf0[3:6,3:6]
+            pdot0 = np.linalg.inv(B) @ (pf - A @ p0)
+
+            # compute primer vector history
+            pi_times.append(copy.deepcopy(self.sols[i].t))
+            pi_history = np.zeros((6, len(self.sols[i].t)))
+            for idx,t in enumerate(self.sols[i].t):
+                pi_history[:,idx] = self.sols[i].y[6:,idx].reshape(6,6) @ np.concatenate((p0, pdot0))
+            pi_histories.append(pi_history)
+        return pi_times, pi_histories
+        
+
+    def plot_primer_vector(self):
+        """Plot primer vector history
+        
+        Returns:
+            (tuple): tuple of times and primer vector histories, figure, axes
+        """
+        pi_times, pi_histories = self.primer_vector()
+        colors = cm.winter(np.linspace(0, 1, self.n_seg))
+        fig, axs = plt.subplots(3,1,figsize=(8,8))
+        for ax in axs:
+            ax.grid(True, alpha=0.5)
+        for i, (pi_time, pi_history) in enumerate(zip(pi_times, pi_histories)):
+            axs[0].plot(pi_time, np.linalg.norm(pi_history[0:3,:], axis=0), color=colors[i])
+            axs[1].plot(pi_time, np.linalg.norm(pi_history[3:6,:], axis=0), color=colors[i])
+            axs[2].plot(pi_time, [pi_history[0:3,idx]@pi_history[3:6,idx] for idx in range(pi_history.shape[1])],
+                        color=colors[i])
+        axs[0].axhline(1, color='black', lw=0.5)
+        axs[0].set(xlabel="Time", ylabel="$\|p\|$")
+        axs[1].set(xlabel="Time", ylabel="$\|\dot{p}\|$")
+        axs[2].set(xlabel="Time", ylabel="$p^T \dot{p}$")
+        plt.tight_layout()
+        return pi_times, pi_histories, fig, axs
     
     
     def get_trajectory(self):

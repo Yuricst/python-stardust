@@ -8,10 +8,10 @@ Outer loop: minimize impulse costs via least-squares
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 from scipy.integrate import solve_ivp
 from scipy.optimize import approx_fprime
 from tqdm.auto import tqdm
-import multiprocessing as mp
 
 from ._misc import vbprint
 from ._twostage_base import _BaseTwoStageOptimizer

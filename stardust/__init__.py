@@ -11,6 +11,7 @@ from .dynamics import *
 from ._twostage_base import _BaseTwoStageOptimizer
 from ._twostage_fixedtime_lsq import FixedTimeTwoStageLeastSquares
 from ._twostage_fixedtime_min import FixedTimeTwoStageMinimizer
+from ._twostage_fixedtime_primervector import FixedTimeTwoStagePrimerVector
 try:
     from ._twostage_fixedtime_udp import FixedTimeTwoStageUDP
 except:

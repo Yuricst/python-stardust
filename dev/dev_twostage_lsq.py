@@ -3,6 +3,7 @@
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 import time
 from scipy.integrate import solve_ivp
 
@@ -107,8 +108,8 @@ def test_twostage_outerloop():
         solf_ballistic = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_f), rvf, args=(mu, mu1, mu2),
                                 method='RK45', rtol=1e-12, atol=1e-12)
         initial_nodes_strategy = 'linear'
-        tspan = [0, 30 * 86400/TU]
-        N = 60
+        tspan = [0, 28 * 86400/TU]
+        N = 30
         weights = [1,1,1] * N
         # w_impulse = 1e-3
         # weights = [w_impulse,w_impulse,w_impulse] + [1,1,1] * (N-2) + [w_impulse,w_impulse,w_impulse]
@@ -128,9 +129,11 @@ def test_twostage_outerloop():
         args = args,
         initial_nodes_strategy = initial_nodes_strategy,
     )
-    nprocs = 6
+
+    nprocs = 4
+    print(f"Max number of procs: {mp.cpu_count()}, using nprocs = {nprocs}")
     tstart = time.time()
-    exitflag, iter_sols = prob.solve(maxiter = 20,
+    exitflag, iter_sols = prob.solve(maxiter = 40,
                                      save_all_iter_sols = True, 
                                      verbose_inner = True,
                                      sparse_approx_jacobian = True,
@@ -163,7 +166,7 @@ def test_twostage_outerloop():
     # in-between guesses
     for _sols in iter_sols:
         for _sol in _sols:
-            ax.plot(_sol.y[0,:], _sol.y[1,:], _sol.y[2,:], color='black', lw=0.5)
+            ax.plot(_sol.y[0,:], _sol.y[1,:], _sol.y[2,:], color='black', lw=0.15)
     ax.plot(sol0_ballistic.y[0,:], sol0_ballistic.y[1,:], sol0_ballistic.y[2,:], color='blue')
     ax.plot(solf_ballistic.y[0,:], solf_ballistic.y[1,:], solf_ballistic.y[2,:], color='green')
     ax.set(xlabel="x", ylabel="y", zlabel="z")
@@ -172,6 +175,9 @@ def test_twostage_outerloop():
 
     # plot control
     fig_u, ax_u = prob.plot_deltaV()
+
+    # compute primer vector
+    pi_times, pi_histories, fig, axs = prob.plot_primer_vector()
     return
 
 
