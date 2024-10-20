@@ -61,9 +61,9 @@ def test_twostage_outerloop():
         period_0 = 2.7824079054366879
         sol0_ballistic = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_0), rv0, args=(mu, mu1, mu2), 
                                 method='RK45', rtol=1e-12, atol=1e-12)
-        sol0_shift = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_0*0.25), rv0, args=(mu, mu1, mu2), 
-                               method='RK45', rtol=1e-12, atol=1e-12)
-        rv0 = sol0_shift.y[:,-1]
+        # sol0_shift = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_0*0.5), rv0, args=(mu, mu1, mu2), 
+        #                        method='RK45', rtol=1e-12, atol=1e-12)
+        # rv0 = sol0_shift.y[:,-1]
 
         # final targeted state
         rvf = np.array([1.1648780946517576,
@@ -92,9 +92,9 @@ def test_twostage_outerloop():
         period_0 = 8.2030392340209257E+0
         sol0_ballistic = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_0), rv0, args=(mu, mu1, mu2), 
                                 method='RK45', rtol=1e-12, atol=1e-12)
-        sol0_shift = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_0*0.5), rv0, args=(mu, mu1, mu2), 
-                               method='RK45', rtol=1e-12, atol=1e-12)
-        rv0 = sol0_shift.y[:,-1]
+        # sol0_shift = solve_ivp(stardust.eom_rotating_cr3bp, (0, period_0*0.1), rv0, args=(mu, mu1, mu2), 
+        #                        method='RK45', rtol=1e-12, atol=1e-12)
+        # rv0 = sol0_shift.y[:,-1]
 
         # final targeted state
         rvf = np.array([1.1648780946517576,
@@ -108,9 +108,10 @@ def test_twostage_outerloop():
                                 method='RK45', rtol=1e-12, atol=1e-12)
         initial_nodes_strategy = 'linear'
         tspan = [0, 30 * 86400/TU]
-        N = 50
-        w_impulse = 1e-3
-        weights = [w_impulse,w_impulse,w_impulse] + [1,1,1] * (N-2) + [w_impulse,w_impulse,w_impulse]
+        N = 60
+        weights = [1,1,1] * N
+        # w_impulse = 1e-3
+        # weights = [w_impulse,w_impulse,w_impulse] + [1,1,1] * (N-2) + [w_impulse,w_impulse,w_impulse]
 
     # construct problem
     args = (mu, mu1, mu2)
@@ -127,7 +128,7 @@ def test_twostage_outerloop():
         args = args,
         initial_nodes_strategy = initial_nodes_strategy,
     )
-    nprocs = 4
+    nprocs = 6
     tstart = time.time()
     exitflag, iter_sols = prob.solve(maxiter = 20,
                                      save_all_iter_sols = True, 
@@ -150,7 +151,8 @@ def test_twostage_outerloop():
     np.savetxt(os.path.join(os.path.dirname(__file__), 'test_ubars.txt'), prob.v_residuals)
 
     # plot trajectory
-    fig, ax, sols_check = prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True)
+    fig, ax, sols_check = prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True,
+                                               sphere_radius = 1737/384400, sphere_center=[1-mu,0,0])
     pos_error = np.linalg.norm(sols_check[-1].y[0:3,-1] - rvf[0:3])
     vel_error = np.linalg.norm(sols_check[-1].y[3:6,-1] + prob.v_residuals[-1] - rvf[3:])
     print(f"Final position error = {pos_error}")
@@ -164,7 +166,6 @@ def test_twostage_outerloop():
             ax.plot(_sol.y[0,:], _sol.y[1,:], _sol.y[2,:], color='black', lw=0.5)
     ax.plot(sol0_ballistic.y[0,:], sol0_ballistic.y[1,:], sol0_ballistic.y[2,:], color='blue')
     ax.plot(solf_ballistic.y[0,:], solf_ballistic.y[1,:], solf_ballistic.y[2,:], color='green')
-    stardust.plot_sphere_wireframe(ax, 1737/384400, [1-mu,0,0], color='grey')
     ax.set(xlabel="x", ylabel="y", zlabel="z")
     ax.set_aspect('equal', 'box')
     # fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
