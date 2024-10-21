@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import multiprocessing as mp
 import time
 from scipy.integrate import solve_ivp
+from scipy.optimize import show_options
 
 import sys
 import os
@@ -120,7 +121,7 @@ def test_twostage_outerloop():
 
     print(f"\nTesting outer loop in sparse Jacobian mode...")
     np.random.seed(0)       # set flag since we are using random initial guess
-    prob = stardust.FixedTimeTwoStageLeastSquares(     # need to re-initialize
+    prob = stardust.FixedTimeTwoStagePrimerVector(     # need to re-initialize
         stardust.eom_stm_rotating_cr3bp,
         rv0,
         rvf,
@@ -129,48 +130,38 @@ def test_twostage_outerloop():
         args = args,
         initial_nodes_strategy = initial_nodes_strategy,
     )
+    # load pre-computed solution
+    prob.times = np.loadtxt(os.path.join(os.path.dirname(__file__), f'test_t_nodes_case{case_option}.txt'))
+    prob.nodes = np.loadtxt(os.path.join(os.path.dirname(__file__), f'test_nodes_case{case_option}.txt'))
+    
+    # # plot trajectory from loaded solution
+    # fig, ax_3d, sols_check = prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True,
+    #                                            sphere_radius = 1737/384400, sphere_center=[1-mu,0,0])
 
-    nprocs = 4
-    print(f"Max number of procs: {mp.cpu_count()}, using nprocs = {nprocs}")
-    tstart = time.time()
-    exitflag, iter_sols = prob.solve(maxiter = 40,
-                                     save_all_iter_sols = True, 
-                                     verbose_inner = True,
-                                     sparse_approx_jacobian = True,
-                                     weights = weights,
-                                     nprocs = nprocs)
-    tend = time.time()
-    print(f"Elapsed time = {tend - tstart} sec\n")
-    print(f"exitflag = {exitflag}")
 
-    # Plot Jacobian sparsity
-    fig, ax = plt.subplots()
-    ax.spy(prob.J_outer)
-    ax.set_title('Jacobian Sparsity Pattern')
+    # solve problem
+    res = prob.solve_scipy(method = 'CG', maxiter = 500, verbose = True)
 
-    # export nodes to file
-    np.savetxt(os.path.join(os.path.dirname(__file__), f'test_t_nodes_case{case_option}.txt'), prob.times)
-    np.savetxt(os.path.join(os.path.dirname(__file__), f'test_nodes_case{case_option}.txt'), prob.nodes)
-    np.savetxt(os.path.join(os.path.dirname(__file__), f'test_ubars_case{case_option}.txt'), prob.v_residuals)
+    # tstart = time.time()
+    # exitflag, iter_sols = prob.solve(maxiter = 2,
+    #                                  save_all_iter_sols = True, 
+    #                                  verbose_inner = True)
+    # tend = time.time()
+    # print(f"Elapsed time = {tend - tstart} sec\n")
+    # print(f"exitflag = {exitflag}")
+
+    # print(f"Gradient after solve: \n{prob.gradient}")
 
     # plot trajectory
-    fig, ax, sols_check = prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True,
+    fig, ax_3d, sols_check = prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True,
                                                sphere_radius = 1737/384400, sphere_center=[1-mu,0,0])
+    # prob.plot_trajectory(use_itm_nodes=False, show_maneuvers=True, ax = ax_3d)
     pos_error = np.linalg.norm(sols_check[-1].y[0:3,-1] - rvf[0:3])
     vel_error = np.linalg.norm(sols_check[-1].y[3:6,-1] + prob.v_residuals[-1] - rvf[3:])
-    print(f"Final position error = {pos_error}")
-    print(f"Final velocity error = {vel_error}")
-    assert pos_error < 1e-11
-    assert vel_error < 1e-11
-    
-    # in-between guesses
-    for _sols in iter_sols:
-        for _sol in _sols:
-            ax.plot(_sol.y[0,:], _sol.y[1,:], _sol.y[2,:], color='black', lw=0.15)
-    ax.plot(sol0_ballistic.y[0,:], sol0_ballistic.y[1,:], sol0_ballistic.y[2,:], color='blue')
-    ax.plot(solf_ballistic.y[0,:], solf_ballistic.y[1,:], solf_ballistic.y[2,:], color='green')
-    ax.set(xlabel="x", ylabel="y", zlabel="z")
-    ax.set_aspect('equal', 'box')
+    ax_3d.plot(sol0_ballistic.y[0,:], sol0_ballistic.y[1,:], sol0_ballistic.y[2,:], color='blue')
+    ax_3d.plot(solf_ballistic.y[0,:], solf_ballistic.y[1,:], solf_ballistic.y[2,:], color='green')
+    ax_3d.set(xlabel="x", ylabel="y", zlabel="z")
+    ax_3d.set_aspect('equal', 'box')
     # fig.savefig(os.path.join(os.path.dirname(__file__), 'twostage_cr3bp_example.png'), dpi=300)
 
     # plot control

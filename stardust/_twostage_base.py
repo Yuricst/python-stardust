@@ -309,11 +309,15 @@ class _BaseTwoStageOptimizer:
     
     
     def plot_trajectory(self, use_itm_nodes=True, show_maneuvers=True,
-                        sphere_radius = None, sphere_center = None, sphere_color = 'grey'):
+                        sphere_radius = None, sphere_center = None, sphere_color = 'grey', ax = None):
         """Plot trajectory in 3D space"""
         sols = self.propagate(get_sols = True, dense_output=False, use_itm_nodes=use_itm_nodes)
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            new_plot = True
+        else:
+            new_plot = False
         if (sphere_radius is not None) and (sphere_center is not None):
             plot_sphere_wireframe(ax, sphere_radius, sphere_center, color=sphere_color)
         ax.scatter(self.nodes[:,0], self.nodes[:,1], self.nodes[:,2], 'o', color='black')
@@ -325,7 +329,10 @@ class _BaseTwoStageOptimizer:
             ax.plot(sol.y[0,:], sol.y[1,:], sol.y[2,:], color='black')
         ax.set(xlabel="x", ylabel="y", zlabel="z")
         ax.set_aspect('equal', 'box')
-        return fig, ax, sols
+        if new_plot:
+            return fig, ax, sols
+        else:
+            return sols
     
     
     def plot_deltaV(self, VU = 1.0, ax=None, use_itm_nodes=True, figsize=(8,6)):
@@ -344,7 +351,7 @@ class _BaseTwoStageOptimizer:
             return
         
 
-    def primer_vector(self):
+    def get_primer_vectors(self):
         """Compute primer vector history
         
         Returns:
@@ -378,7 +385,7 @@ class _BaseTwoStageOptimizer:
         Returns:
             (tuple): tuple of times and primer vector histories, figure, axes
         """
-        pi_times, pi_histories = self.primer_vector()
+        pi_times, pi_histories = self.get_primer_vectors()
         colors = cm.winter(np.linspace(0, 1, self.n_seg))
         fig, axs = plt.subplots(3,1,figsize=(8,8))
         for ax in axs:

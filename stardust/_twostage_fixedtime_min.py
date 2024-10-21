@@ -155,16 +155,15 @@ class FixedTimeTwoStageMinimizer(_BaseTwoStageOptimizer):
         Returns:
             (int, list): exitflag, list of intermediate solutions
         """
-        iter_sols = []
-        dv_cost_last = 1e18
-        exitflag = 0
-
         # copy for best solution found so far
         best_nodes = copy.deepcopy(self.nodes)
         best_cost = 1e18
         i_best = -1
         
-        # iterate
+        # prepare iteration of outer-loop
+        iter_sols = []
+        dv_cost_last = 1e18
+        exitflag = 0
         for it in range(maxiter):
             # run inner loop to make sure there is enough nodes
             _sols_inner_loop = self.inner_loop(maxiter = maxiter_inner,
